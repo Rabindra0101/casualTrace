@@ -1,4 +1,5 @@
 
+import sys
 from pathlib import Path
 
 from causaltrace.git_analyzer import (
@@ -10,6 +11,12 @@ from causaltrace.nemotron_client import generate_root_cause_hypothesis
 from causaltrace.verifier import (find_regression_commit, verify_by_reversal)
 from causaltrace.report_generator import generate_report
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    
 def main():
     project_root = Path(__file__).resolve().parent.parent
     target_repo = project_root / "demo" / "sample_repo"
