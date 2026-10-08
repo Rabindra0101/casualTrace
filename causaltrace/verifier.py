@@ -134,3 +134,89 @@ def find_regression_commit(repo_path: Path, test_directory: str = "demo/sample_r
 
     print("\nNo passing baseline was found in the tested history.")
     return None
+
+
+def verify_by_reversal(
+    repo_path: Path,
+    suspect_commit: str,
+    test_directory: str = "demo/sample_repo",
+) -> dict:
+    """
+    Test whether reverting the suspect commit restores
+    passing tests in an isolated worktree.
+    """
+    print("\n[6] Running reversal experiment...\n")
+
+    with tempfile.TemporaryDirectory(prefix="causaltrace-reversal-") as temp:
+        worktree = Path(temp) / "repo"
+
+        run_command(
+            ["git", "worktree", "add", "--detach",
+             str(worktree), suspect_commit],
+            repo_path,
+        )
+
+        try:
+            # Run tests before the reversal
+            before = subprocess.run(
+                [sys.executable, "-m", "pytest", "-v"],
+                cwd=worktree / test_directory,
+                capture_output=True,
+                text=True,
+            )
+
+            print(f"Original revision: {suspect_commit[:7]}")
+            print(f"Before reversal: {'PASS' if before.returncode == 0 else 'NOT PASS'}")
+
+            # Reverse the suspect commit inside the temporary worktree
+            reversal = subprocess.run(
+                ["git", "revert", "--no-commit", suspect_commit],
+                cwd=worktree,
+                capture_output=True,
+                text=True,
+            )
+
+            if reversal.returncode != 0:
+                print("Reversal could not be applied.")
+                print(reversal.stdout + reversal.stderr)
+                return {
+                    "verified": False,
+                    "reason": "Git reversal failed",
+                }
+
+            # Run tests after the reversal
+            after = subprocess.run(
+                [sys.executable, "-m", "pytest", "-v"],
+                cwd=worktree / test_directory,
+                capture_output=True,
+                text=True,
+            )
+
+            print(f"After reversal: {'PASS' if after.returncode == 0 else 'NOT PASS'}")
+
+            verified = (
+                before.returncode == 1
+                and "FAILED" in before.stdout
+                and after.returncode == 0
+            )
+
+            if verified:
+                print("\nREVERSAL EXPERIMENT SUCCESSFUL")
+                print("The original revision failed.")
+                print("Reverting the suspected commit restored passing tests.")
+            else:
+                print("\nREVERSAL EXPERIMENT INCONCLUSIVE")
+                print("The expected fail-to-pass transition was not observed.")
+
+            return {
+                "verified": verified,
+                "before_return_code": before.returncode,
+                "after_return_code": after.returncode,
+            }
+
+        finally:
+            run_command(
+                ["git", "worktree", "remove", "--force", str(worktree)],
+                repo_path,
+            )
+

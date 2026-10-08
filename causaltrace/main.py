@@ -7,8 +7,7 @@ from causaltrace.git_analyzer import (
 )
 from causaltrace.test_runner import run_pytest
 from causaltrace.nemotron_client import generate_root_cause_hypothesis
-from causaltrace.verifier import find_regression_commit
-
+from causaltrace.verifier import (find_regression_commit, verify_by_reversal)
 
 def main():
     project_root = Path(__file__).resolve().parent.parent
@@ -86,6 +85,22 @@ def main():
 
     print(f"\nVerification status: {verification_status}")
 
+
+    # 6. Verify whether reversing the suspected commit
+    # restores the expected software behavior.
+
+    reversal_result = verify_by_reversal(
+        project_root,
+        commit_hash,
+    )
+
+    if reversal_result["verified"]:
+        causal_status = "REVERSAL VERIFIED"
+    else:
+        causal_status = "REVERSAL INCONCLUSIVE"
+
+    print(f"\nCausal verification: {causal_status}")
+
     # 6. Final investigation summary
     print("\n" + "=" * 60)
     print("INVESTIGATION COMPLETE")
@@ -95,7 +110,7 @@ def main():
     print(f"Failing repository: {target_repo}")
     print(f"Candidate commit: {commit_hash}")
     print(f"Counterfactual verification: {verification_status}")
-
+    print(f"Causal verification: {causal_status}")
     print("\nCausalTrace investigation finished.")
 
 
