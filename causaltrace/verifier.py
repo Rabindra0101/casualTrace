@@ -2,6 +2,7 @@
 import subprocess
 import sys
 import tempfile
+import shutil
 from pathlib import Path
 
 
@@ -184,6 +185,16 @@ def verify_by_reversal(
                     "reason": "Git reversal failed",
                 }
 
+            # Remove cached Python bytecode before retesting.
+            test_path = worktree / test_directory
+
+            for cache_directory in test_path.rglob("__pycache__"):
+                shutil.rmtree(cache_directory, ignore_errors=True)
+
+            pytest_cache = test_path / ".pytest_cache"
+            if pytest_cache.exists():
+                shutil.rmtree(pytest_cache, ignore_errors=True)
+
             # Run tests after the reversal
             after = subprocess.run(
                 [sys.executable, "-m", "pytest", "-v"],
@@ -193,6 +204,14 @@ def verify_by_reversal(
             )
 
             print(f"After reversal: {'PASS' if after.returncode == 0 else 'NOT PASS'}")
+            
+            print(f"\nAfter reversal exit code: {after.returncode}")
+            print("\nAfter reversal pytest output:")
+            print(after.stdout)
+
+            if after.stderr:
+                print("\nAfter reversal errors:")
+                print(after.stderr)
 
             verified = (
                 before.returncode == 1

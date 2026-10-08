@@ -8,6 +8,7 @@ from causaltrace.git_analyzer import (
 from causaltrace.test_runner import run_pytest
 from causaltrace.nemotron_client import generate_root_cause_hypothesis
 from causaltrace.verifier import (find_regression_commit, verify_by_reversal)
+from causaltrace.report_generator import generate_report
 
 def main():
     project_root = Path(__file__).resolve().parent.parent
@@ -101,6 +102,15 @@ def main():
 
     print(f"\nCausal verification: {causal_status}")
 
+    # 7. Generate a machine-readable investigation report
+    report_path = generate_report(
+        project_root=project_root,
+        regression_commit=commit_hash,
+        hypothesis=hypothesis,
+        reversal_result=reversal_result,
+    )
+
+
     # 6. Final investigation summary
     print("\n" + "=" * 60)
     print("INVESTIGATION COMPLETE")
@@ -111,6 +121,7 @@ def main():
     print(f"Candidate commit: {commit_hash}")
     print(f"Counterfactual verification: {verification_status}")
     print(f"Causal verification: {causal_status}")
+    print(f"Investigation report: {report_path}")
     print("\nCausalTrace investigation finished.")
 
 
