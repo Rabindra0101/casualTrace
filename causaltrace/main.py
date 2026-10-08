@@ -7,7 +7,7 @@ from causaltrace.git_analyzer import (
 )
 from causaltrace.test_runner import run_pytest
 from causaltrace.nemotron_client import generate_root_cause_hypothesis
-from causaltrace.verifier import verify_regression
+from causaltrace.verifier import find_regression_commit
 
 
 def main():
@@ -48,11 +48,16 @@ def main():
     for commit in commits:
         print(commit)
 
-    # 3. Inspect latest change
-    latest_commit = commits[0]
-    commit_hash = latest_commit.split()[0]
+    # 3. Search Git history for the regression
+    print("\n[3] Finding regression-introducing commit...\n")
 
-    print("\n[3] Examining latest change...\n")
+    commit_hash = find_regression_commit(project_root)
+
+    if commit_hash is None:
+        print("Unable to identify a regression-introducing commit.")
+        return
+
+    print(f"\nIdentified regression commit: {commit_hash[:7]}")
 
     diff = get_commit_diff(project_root, commit_hash)
     print(diff)
@@ -67,17 +72,17 @@ def main():
 
     print("NEMOTRON ROOT-CAUSE HYPOTHESIS:")
     print(hypothesis)
-    print("\nVerification status: NOT YET VERIFIED")
 
-    # 5. Verify the candidate commit
-    print("\nStarting counterfactual experiment...")
+    # Historical tests were executed by find_regression_commit().
+    # A passing-to-failing boundary was identified before AI analysis.
 
-    verified = verify_regression(project_root, commit_hash)
+    print("\n[5] Reviewing regression evidence...\n")
 
-    if verified:
-        verification_status = "REGRESSION CONFIRMED"
-    else:
-        verification_status = "INCONCLUSIVE"
+    verification_status = "REGRESSION BOUNDARY CONFIRMED"
+
+    print(f"Last passing revision: {commit_hash[:7]}^")
+    print(f"First failing revision: {commit_hash[:7]}")
+    print(f"Verification status: {verification_status}")
 
     print(f"\nVerification status: {verification_status}")
 

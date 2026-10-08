@@ -85,3 +85,52 @@ def verify_regression(repo_path: Path, suspect_commit: str):
         print("Inspect test output and execution errors.")
 
     return verified
+
+
+
+def find_regression_commit(repo_path: Path, test_directory: str = "demo/sample_repo"):
+    """
+    Search backward through first-parent Git history to find
+    the first passing revision before the current failure.
+    """
+    history = run_command(
+        ["git", "rev-list", "--first-parent", "HEAD"],
+        repo_path,
+    ).stdout.splitlines()
+
+    print("\n[5] Searching Git history for regression...\n")
+
+    previous_failing_commit = None
+
+    for commit in history:
+        result = test_commit(repo_path, commit, test_directory)
+
+        if result["return_code"] == 0:
+            status = "PASS"
+        elif result["return_code"] == 1 and "FAILED" in result["output"]:
+            status = "FAIL"
+        else:
+            status = "ERROR"
+
+        print(f"{commit[:7]}: {status}")
+
+        if status == "ERROR":
+            print("Investigation stopped: test execution was inconclusive.")
+            print(result["output"])
+            return None
+
+        if status == "PASS":
+            if previous_failing_commit is not None:
+                print("\n" + "=" * 60)
+                print("REGRESSION BOUNDARY FOUND")
+                print(f"Last passing commit: {commit[:7]}")
+                print(f"First failing commit: {previous_failing_commit[:7]}")
+                return previous_failing_commit
+
+            print("The newest revision passes. No current regression.")
+            return None
+
+        previous_failing_commit = commit
+
+    print("\nNo passing baseline was found in the tested history.")
+    return None
