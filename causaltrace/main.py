@@ -108,6 +108,7 @@ def main():
         regression_commit=commit_hash,
         hypothesis=hypothesis,
         reversal_result=reversal_result,
+        test_result=test_result,
     )
 
 
